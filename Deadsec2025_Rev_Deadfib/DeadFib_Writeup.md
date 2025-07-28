@@ -24,7 +24,7 @@ Line 197 in main() is
 
 In this decompilation, Ghidra does a variable decleration by calling the variable as a parameter to a class function. This is very common in decompiled OOP languages, and something to get used to as you reverse engineer this. Understanding the disjointedness of Rust like in lines 199 and 201 where there's not even a parameter to the stdin() and readline() calls will make your time much easier.
 
-Now to actually reverse this. local_410 is clearly the user_input string. We see in lines 207-209 that it does operation's to trim the string's excess off (&var4 is the trimmed string, renamed it trimmed_str). We see this big if statement, and looking at the conditional, uVar2 is the string length of the trimmed user input. So the user can input 0x29 (or 41) bytes of input (not including suffixed spaces). If they don't, nothing interesting happens. This tells us the flag is certainly 41 characters long, which is *important* for later.
+Now to actually reverse this. local_410 is the user_input string. stdin() is called right after making the string, and in the assembly local_410 stays in RDI when stdin() is called. We see in lines 207-209 that it does operation's to trim the string's excess off (&var4 is the trimmed string, renamed it trimmed_str). We see this big if statement, and looking at the conditional, uVar2 is the string length of the trimmed user input. So the user can input 0x29 (or 41) bytes of input (not including suffixed spaces). If they don't, nothing interesting happens. This tells us the flag is certainly 41 characters long, which is *important* for later.
 
 Next, let's do some dynamic analysis and see what this program actually does. Running it prompts us with an input (I put 41 A's) and then it let's us know output.bin was written to, and then it gives us a hash and some other data.
 
@@ -38,14 +38,14 @@ local_250 is only used in one place before being written (hint: use Secondary Hi
 
 It's made, then the user input (after some variable redefinitions earlier) get's broken into byte-sized pieces and iterated through (think for each loop!). then it's put into 2 functions: wP8nL3kX6() and yS4nF7kM1(). Cool. Now we have to reverse these!
 
-Looking at the source code, I genuinely do not know what is going on. And that's okay! An easy way to do this is just set a breakpoint before and after the function, and see what happens. The definition is this:
+Looking at the source code, I genuinely do not know what is going on. I decided to do some dynamic analysis to figure out what it does, and an easy way to do this is just set a breakpoint before and after the function, and see what happens. The definition is this:
 
 ```rust
 String * __rustcall
 fib_challenge::fib_challenge::wP8nL3kX6(String *__return_storage_ptr__,u64 xQ2nR9fT5)
 ```
 
-*_return_storage_ptr__* is the parameter we'll care about, since xQ2nR9fT5 is never written to anyways. Doing this reveals that it get's a number and outputs it's binary format. If you've looked at the given output.bin, it's all 1's and 0's, so this makes sense.
+we'll check xQ2nR9fT5 before the function runs to see what's being put in. *_return_storage_ptr__* is the parameter we'll check after the function runs, since xQ2nR9fT5 is never written to (and therefore has no output). I set a breakpoint for 0x0012152f and 0x0012153c (instruction before and after the function call), ran the program, and checked the data. Doing this reveals that it get's a number (say 11) and outputs it's binary format in ASCII form ( "1011"). If you've looked at the given output.bin, it's all 1's and 0's, so this makes sense.
 
 ```rust
 String * __rustcall
